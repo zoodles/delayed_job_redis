@@ -16,12 +16,12 @@ Gem::Specification.new do |gem|
   gem.version       = DelayedJobRedis::VERSION
 
   gem.add_runtime_dependency   'uuidtools'
-  gem.add_runtime_dependency   'redis', '>= 3.0.1'
-  gem.add_runtime_dependency   'delayed_job',  '~> 3.0'
+  gem.add_runtime_dependency   'redis', '3.0.2'
+  gem.add_runtime_dependency   'delayed_job',  '~> 4.0'
 
-  gem.add_development_dependency 'rake'
-  gem.add_development_dependency 'rspec'
+  gem.add_development_dependency 'rake', '10.0.3'
+  gem.add_development_dependency 'rspec', '2.11.0'
   gem.add_development_dependency 'sqlite3'
-  gem.add_development_dependency 'rails'
+  gem.add_development_dependency 'rails', '3.2.12'
 
 end
