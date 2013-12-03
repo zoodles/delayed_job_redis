@@ -13,7 +13,7 @@ module Delayed
         attr_accessor :last_error, :attempts
 
         def self.all_keys
-          Delayed::Worker.redis.keys "#{Delayed::Worker.redis_prefix}_*"
+          Delayed::Worker.redis.keys("#{Delayed::Worker.redis_prefix}_*") || []
         end
 
         def self.count
@@ -163,7 +163,7 @@ module Delayed
           options.each {|k,v| send("#{k}=", v) }
           save
         end
-        
+
         def self.find(key)
           _, _id = key.split("#{Delayed::Worker.redis_prefix}_")
           _priority, _run_at, _queue, _payload_object, _failed_at, _locked_at, _locked_by, _attempts, _last_error = 
@@ -197,7 +197,7 @@ module Delayed
                 _id == id and (locked_at.to_i == 0 or locked_at < (now - max_run_time.to_i)) and (run_at <= now)
               end
 
-              Delayed::Worker.redis.watch *keys
+              Delayed::Worker.redis.watch(*keys)
               Delayed::Worker.redis.multi do
 
                 keys.each {|key| Delayed::Worker.redis.hmset key, "locked_at", now, "locked_by", worker}
@@ -216,7 +216,7 @@ module Delayed
                 _id == id and locked_by == worker
               end
 
-              Delayed::Worker.redis.watch *keys
+              Delayed::Worker.redis.watch(*keys)
               Delayed::Worker.redis.multi do
               
                 keys.each {|key| Delayed::Worker.redis.hset key, "locked_at", now }
