@@ -2,9 +2,9 @@ require 'uuidtools'
 module Delayed
   module Backend
     module RedisStore
-      class Job 
+      class Job
         include Delayed::Backend::Base
-        attr_accessor :priority, :run_at, :queue, 
+        attr_accessor :priority, :run_at, :queue,
                       :failed_at, :locked_at, :locked_by
 
         attr_accessor :handler
@@ -20,7 +20,7 @@ module Delayed
           all_keys.length
         end
 
-        def self.delete_all 
+        def self.delete_all
           all_keys.each{|k| Delayed::Worker.redis.del k }
         end
 
@@ -47,38 +47,35 @@ module Delayed
         # When a worker is exiting, make sure we don't have any locked jobs.
         def self.clear_locks!(worker_name)
           keys = all_keys
-          keys = 
-          keys.select do |key|
+          keys = keys.select do |key|
             locked_by = Delayed::Worker.redis.hget key, "locked_by"
             locked_by == worker_name
           end
           keys.each do |k|
-            Delayed::Worker.redis.hdel k, "locked_by" 
-            Delayed::Worker.redis.hdel k, "locked_at" 
+            Delayed::Worker.redis.hdel k, "locked_by"
+            Delayed::Worker.redis.hdel k, "locked_at"
           end
         end
 
         # Find a few candidate jobs to run (in case some immediately get locked by others).
         def self.find_available(worker_name, limit = 5, max_run_time = Worker.max_run_time)
-          keys = self.ready_to_run(worker_name, max_run_time)
+          keys = ready_to_run(worker_name, max_run_time)
           if Worker.min_priority
-            keys = 
-              keys.select do |key|
+            keys = keys.select do |key|
               priority = Delayed::Worker.redis.hget key, "priority"
               priority = priority.to_i
               priority >= Worker.min_priority
             end
           end
-          
+
           if Worker.max_priority
-            keys = 
-              keys.select do |key|
+            keys = keys.select do |key|
               priority = Delayed::Worker.redis.hget key, "priority"
               priority = priority.to_i
               priority <= Worker.max_priority
             end
           end
-          
+
           if Worker.queues.any?
             keys =
               keys.select do |key|
@@ -86,7 +83,7 @@ module Delayed
               Worker.queues.include?(queue)
             end
           end
-          
+
           keys =
             keys.sort_by do |key|
             priority, run_at = Delayed::Worker.redis.hmget key, "priority", "run_at"
@@ -102,10 +99,10 @@ module Delayed
           set_default_run_at
           keys = [:id, :priority, :run_at, :queue, :last_error,
                   :failed_at, :locked_at, :locked_by, :attempts].select  {|c| v = self.send(c); !v.nil? }
-          args = keys.map do |k| 
+          args = keys.map do |k|
             v = self.send(k)
             v = v.to_i if v.is_a?(Time)
-            [k.to_s, v] 
+            [k.to_s, v]
           end.flatten
           args += ["payload_object", handler]
           Delayed::Worker.redis.hmset "#{Delayed::Worker.redis_prefix}_#{id}", *args
@@ -113,7 +110,7 @@ module Delayed
         end
 
         def save! ; save ; end
-          
+
 
         def destroy
           Delayed::Worker.redis.del "#{Delayed::Worker.redis_prefix}_#{id}"
@@ -133,7 +130,7 @@ module Delayed
 
         def reload
           reset
-          _priority, _run_at, _queue, _payload_object, _failed_at, _locked_at, _locked_by, _attempts, _last_error = 
+          _priority, _run_at, _queue, _payload_object, _failed_at, _locked_at, _locked_by, _attempts, _last_error =
             Delayed::Worker.redis.hmget "#{Delayed::Worker.redis_prefix}_#{id}", "priority", "run_at",
             "queue", "payload_object", "failed_at", "locked_at", "locked_by", "attempts", "last_error"
           self.priority = _priority.to_i
@@ -164,9 +161,10 @@ module Delayed
           save
         end
 
+        # FIXME UGH ...gonna have to add a "where" method soon
         def self.find(key)
           _, _id = key.split("#{Delayed::Worker.redis_prefix}_")
-          _priority, _run_at, _queue, _payload_object, _failed_at, _locked_at, _locked_by, _attempts, _last_error = 
+          _priority, _run_at, _queue, _payload_object, _failed_at, _locked_at, _locked_by, _attempts, _last_error =
             Delayed::Worker.redis.hmget "#{Delayed::Worker.redis_prefix}_#{_id}", "priority", "run_at",
             "queue", "payload_object", "failed_at", "locked_at", "locked_by", "attempts", "last_error"
           new(:id => _id,
@@ -203,7 +201,7 @@ module Delayed
                 keys.each {|key| Delayed::Worker.redis.hmset key, "locked_at", now, "locked_by", worker}
 
               end
-              
+
               keys.length
             else
               # We already own this job, this may happen if the job queue crashes.
@@ -218,10 +216,10 @@ module Delayed
 
               Delayed::Worker.redis.watch(*keys)
               Delayed::Worker.redis.multi do
-              
+
                 keys.each {|key| Delayed::Worker.redis.hset key, "locked_at", now }
               end
-              
+
               keys.length
             end
           if affected_rows == 1
