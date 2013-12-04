@@ -161,10 +161,10 @@ module Delayed
           save
         end
 
-        def first
-          key = self.class.all_keys.first
+        def self.first
+          key = all_keys.first
           if key && !key.empty?
-            self.class.find(key)
+            find(key)
           else
             nil
           end
