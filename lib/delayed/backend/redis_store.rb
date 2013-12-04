@@ -161,6 +161,15 @@ module Delayed
           save
         end
 
+        def first
+          key = self.class.all_keys.first
+          if key && !key.empty?
+            self.class.find(key)
+          else
+            nil
+          end
+        end
+
         # FIXME UGH ...gonna have to add a "where" method soon
         def self.find(key)
           _, _id = key.split("#{Delayed::Worker.redis_prefix}_")
