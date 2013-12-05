@@ -23,5 +23,6 @@ Gem::Specification.new do |gem|
   gem.add_development_dependency 'rspec', '2.11.0'
   gem.add_development_dependency 'sqlite3'
   gem.add_development_dependency 'rails', '3.2.12'
+  gem.add_development_dependency 'debugger'
 
 end
