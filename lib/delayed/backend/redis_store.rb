@@ -12,7 +12,35 @@ module Delayed
 
         attr_accessor :last_error, :attempts
 
+        SET_NAME="#{Delayed::Worker.redis_prefix}_set"
+
+        def self.add_to_set(_key)
+          Delayed::Worker.redis.sadd(SET_NAME, _key)
+        end
+
+        def self.redis_key(_id)
+          "#{Delayed::Worker.redis_prefix}_#{_id}"
+        end
+
+        def self.get_random_key
+          Delayed::Worker.redis.srandmember(SET_NAME)
+        end
+
+        def self.remove_from_set(_key)
+          Delayed::Worker.redis.srem(SET_NAME, _key)
+        end
+
         def self.all_keys
+          Delayed::Worker.redis.smembers(SET_NAME) || []
+        end
+
+        # slow
+        def self.add_keys
+          Delayed::Worker.redis.sadd(SET_NAME, *search_keys)
+        end
+
+        # slow
+        def self.search_keys
           Delayed::Worker.redis.keys("#{Delayed::Worker.redis_prefix}_*") || []
         end
 
@@ -105,19 +133,25 @@ module Delayed
             [k.to_s, v]
           end.flatten
           args += ["payload_object", handler]
-          Delayed::Worker.redis.hmset "#{Delayed::Worker.redis_prefix}_#{id}", *args
+          _key = self.class.redis_key(id)
+          Delayed::Worker.redis.hmset _key, *args
+          self.class.add_to_set(_key)
           self
         end
 
         def save! ; save ; end
 
-
         def destroy
-          Delayed::Worker.redis.del "#{Delayed::Worker.redis_prefix}_#{id}"
+          _key = self.class.redis_key(id)
+          Delayed::Worker.redis.del _key
+          self.class.remove_from_set(_key)
         end
 
         def id
-          @id ||= UUIDTools::UUID.random_create.to_s
+          unless @id
+            @id = UUIDTools::UUID.random_create.to_s
+          end
+          @id
         end
 
         def self.create(options)
@@ -130,8 +164,9 @@ module Delayed
 
         def reload
           reset
+          _key = self.class.redis_key(id)
           _priority, _run_at, _queue, _payload_object, _failed_at, _locked_at, _locked_by, _attempts, _last_error =
-            Delayed::Worker.redis.hmget "#{Delayed::Worker.redis_prefix}_#{id}", "priority", "run_at",
+            Delayed::Worker.redis.hmget _key, "priority", "run_at",
             "queue", "payload_object", "failed_at", "locked_at", "locked_by", "attempts", "last_error"
           self.priority = _priority.to_i
           self.run_at = _run_at.nil? ? nil : Time.at(_run_at.to_i)
@@ -162,7 +197,7 @@ module Delayed
         end
 
         def self.first
-          key = all_keys.first
+          key = self.class.get_random_key
           if key && !key.empty?
             find(key)
           else
@@ -250,6 +285,8 @@ module Delayed
         end
 
       end
+      # one-time:
+      Delayed::Backend::RedisStore::Job.add_keys
     end
   end
 end
