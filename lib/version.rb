@@ -1,1 +1,1 @@
-module DelayedJobRedis ; VERSION = "0.0.4" ; end
+module DelayedJobRedis ; VERSION = "0.0.5" ; end
